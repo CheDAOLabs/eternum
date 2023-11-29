@@ -10,12 +10,11 @@ import TopContainer from "../containers/TopContainer";
 import NavigationModule from "../modules/NavigationModule";
 import ContentContainer from "../containers/ContentContainer";
 import RealmManagementModule from "../modules/RealmManagementModule";
-import EpochCountdown from "../components/network/EpochCountdown";
 import RealmResourcesComponent from "../components/cityview/realm/RealmResourcesComponent";
 import { useFetchBlockchainData } from "../hooks/store/useBlockchainStore";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Redirect } from "wouter";
+import { Redirect, Route, Switch, useLocation } from "wouter";
 import { useProgress } from "@react-three/drei";
 import { BlurOverlayContainer } from "../containers/BlurOverlayContainer";
 import { SignUpComponent } from "../components/SignUpComponent";
@@ -26,8 +25,27 @@ import WorldMapMenuModule from "../modules/WorldMapMenuModule";
 import hyperStructures from "../data/hyperstructures.json";
 import { useHyperstructure } from "../hooks/helpers/useHyperstructure";
 import { Tooltip } from "../elements/Tooltip";
+import useLeaderBoardStore from "../hooks/store/useLeaderBoardStore";
+import useCombatHistoryStore from "../hooks/store/useCombatHistoryStore";
+import { useDojo } from "../DojoContext";
+import useRealmStore from "../hooks/store/useRealmStore";
 
 export const World = () => {
+  const {
+    setup: {
+      systemCalls: { isLive },
+    },
+  } = useDojo();
+
+  const [isWorldLive, setIsWorldLive] = useState(false);
+
+  useEffect(() => {
+    const checkWorldLive = async () => {
+      setIsWorldLive(await isLive());
+    };
+    checkWorldLive();
+  }, []);
+
   const { loading: worldLoading, progress: worldProgress } = useSyncWorld();
 
   useFetchBlockchainData();
@@ -41,6 +59,20 @@ export const World = () => {
   const setIsLoadingScreenEnabled = useUIStore((state) => state.setIsLoadingScreenEnabled);
   const setHyperstructures = useUIStore((state) => state.setHyperstructures);
   const setMouseCoords = useUIStore((state) => state.setMouseCoords);
+
+  const { getHyperstructureIds } = useHyperstructure();
+  const syncData = useLeaderBoardStore((state) => state.syncData);
+  const syncCombatHistory = useCombatHistoryStore((state) => state.syncData);
+
+  useEffect(() => {
+    let ids = getHyperstructureIds();
+    syncData(ids);
+  }, [worldLoading]);
+
+  const realmEntityId = useRealmStore((state) => state.realmEntityId);
+  useEffect(() => {
+    syncCombatHistory(realmEntityId);
+  }, [worldLoading, realmEntityId]);
 
   const [playBackground, { stop }] = useSound("/sound/music/happy_realm.mp3", {
     soundEnabled: isSoundOn,
@@ -76,6 +108,16 @@ export const World = () => {
     }
   }, [progress, worldLoading]);
 
+  const [location] = useLocation();
+  // location type
+  const locationType = useMemo(() => {
+    if (location === "/map" || location === "/") {
+      return "map";
+    } else {
+      return "realm";
+    }
+  }, [location]);
+
   return (
     <div
       onMouseMove={(e) =>
@@ -110,20 +152,26 @@ export const World = () => {
         {/* <ContextsModule /> */}
       </TopContainer>
       <ContentContainer>
-        <RealmManagementModule />
-        <WorldMapMenuModule />
+        <Switch location={locationType}>
+          <Route path="map">
+            <WorldMapMenuModule />
+          </Route>
+          <Route path="realm">
+            <RealmManagementModule />
+          </Route>
+        </Switch>
       </ContentContainer>
       <BottomMiddleContainer>{/* <WolrdMapLayersModule /> */}</BottomMiddleContainer>
       <BottomRightContainer>
         <ChatModule />
       </BottomRightContainer>
-      <EpochCountdown />
       <BlurOverlayContainer>
-        <SignUpComponent worldLoading={worldLoading} worldProgress={worldProgress} />
+        <SignUpComponent isWorldLive={isWorldLive} worldLoading={worldLoading} worldProgress={worldProgress} />
       </BlurOverlayContainer>
-      <Leva hidden={import.meta.env.PROD} />
+      <Leva hidden={import.meta.env.PROD || import.meta.env.HIDE_THREEJS_MENU} />
       <Tooltip />
       <Redirect to="/map" />
+      <div className="absolute bottom-4 right-6 text-white text-xs text-white/60">v0.3.0</div>
     </div>
   );
   return <div></div>;

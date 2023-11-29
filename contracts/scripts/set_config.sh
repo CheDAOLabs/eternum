@@ -1,16 +1,6 @@
 #!/bin/bash
 
-CONFIG_SYSTEMS="0xd81a66847b86b0aca0d66053b731e701f745e42c1ed40d59ae3221b1a52711";
-LABOR_SYSTEMS="0x4c171c6de260a9865743d05ba27771b9c758fa176a88982982facaca188cf65";
-TRADE_SYSTEMS="0x2139d726bf9c34b3d0f68e740a16233604993534ad809329ac5788fa136adf1";
-HYPERSTRUCTURE_SYSTEMS="0xca23e4b5195bc2560bd537b35b9ef45f6e49a0923d8ecd36c515a423ae269";
-RESOURCE_SYSTEMS="0x3515736afe8663c5e673df2a7db08ed55b90c79b9a81e71d537d6962de6fd98";
-CARAVAN_SYSTEMS="0x693a6c8b9643cfcdb3e3eb63c3b76aca7b80eaec17d46662714ca6d2bfe8c26";
-ROAD_SYSTEMS="0x489761647ff04e1163659537e9b4967a67ddbfc3be73aa60f8039e69c3ee74d";
-TRANSPORT_UNIT_SYSTEMS="0x155b8cbe4b8c2464ab60db85411dffdd57d28320c93246dd3c02bdee2d18479";
-TRAVEL_SYSTEMS="0x70717be365c143d9f4ae207e420d0c3525a7c79197a20e6e63e4dec0b1b26cd";
-TEST_REALM_SYSTEMS="0xee850f8d8ded18763d23e35d3592f9549081124bee0c32ffb2ef355deb1b68";
-TEST_RESOURCE_SYSTEMS="0x17505387265fa24a4846cb3b3207aa92c3e6f918f74883a43be959265d19e44";
+source ./scripts/contracts.sh
 
 resource_precision=1000
 
@@ -22,8 +12,8 @@ commands=(
     # ### LABOR ###
     # # base_labor_units 7200
     # # base_resources_per_cycle 21
-    # # base_food_per_cycle 14000
-    "sozo execute $CONFIG_SYSTEMS set_labor_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,7200,$((21 * resource_precision)),$((14000 * resource_precision))"
+    # # base_food_per_cycle 21
+    "sozo execute $CONFIG_SYSTEMS set_labor_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,7200,$((21 * resource_precision)),$((21 * resource_precision))"
 
     # ### SPEED ###
     # # entity type FREE_TRANSPORT_ENTITY_TYPE = 256
@@ -47,12 +37,54 @@ commands=(
 
 )
 
+### LEVELING CONFIG ###
+commands+=(
+    ## leveling cost
+    "sozo execute $CONFIG_SYSTEMS set_leveling_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,22,1,218042,2,171347,3,166652,4,114912,5,96347,6,75695,7,51260,8,41607,9,39740,10,25825,11,13042,12,10740,13,10392,14,10392,15,7477,16,7042,17,6042,18,4825,19,4042,20,2392,21,1607,22,100"
+)
+
+
+### SOLDIERS CONFIG ###
+commands+=(
+    ## soldier weight 
+    ## 80 kg = 80000 gr
+    "sozo execute $CONFIG_SYSTEMS set_weight_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,80000"
+
+    ## soldier capacity
+    "sozo execute $CONFIG_SYSTEMS set_capacity_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,$((100 * resource_precision))"
+
+    ## soldier speed
+    ## 800 sec per km = 4.5 km/h
+    "sozo execute $CONFIG_SYSTEMS set_speed_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,800"
+
+    ## soldier cost
+    ## 7560 wheat (254)
+    ## 2520 fish (255)
+    "sozo execute $CONFIG_SYSTEMS set_soldier_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,2,254,1512000,255,504000"
+
+    ## soldier health
+    ## 10 
+    "sozo execute $CONFIG_SYSTEMS set_health_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,10"
+
+    ## soldier attack
+    ## 10 
+    "sozo execute $CONFIG_SYSTEMS set_attack_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,10"
+
+    ## soldier defence
+    ## 10 
+    "sozo execute $CONFIG_SYSTEMS set_defence_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,258,10"
+
+    ## combat config
+    ## stealing_trial_count
+    "sozo execute $CONFIG_SYSTEMS set_combat_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,999999999999999994,22"
+)
+
 ### WEIGHT ###
 # Loop for resource types 1 to 28
 for resource_type in {1..28}
 do
     commands+=(
-        # 1 g per resource
+        # 1 g per 1/1000th of a resource (resource precision = 1000)
         "sozo execute $CONFIG_SYSTEMS set_weight_config --account-address $DOJO_ACCOUNT_ADDRESS --calldata $SOZO_WORLD,$resource_type,1"
     )
 done

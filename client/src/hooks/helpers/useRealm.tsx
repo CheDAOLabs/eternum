@@ -1,20 +1,31 @@
 import { useMemo, useState } from "react";
 import { RealmInterface } from "../graphql/useGraphQLQueries";
-import { Has, HasValue, getComponentValue, runQuery } from "@latticexyz/recs";
+import { EntityIndex, Has, HasValue, getComponentValue, runQuery } from "@latticexyz/recs";
 import { useDojo } from "../../DojoContext";
-import { getEntityIdFromKeys } from "../../utils/utils";
+import { getEntityIdFromKeys, hexToAscii, numberToHex } from "../../utils/utils";
 import { getOrderName } from "@bibliothecadao/eternum";
 import realmIdsByOrder from "../../data/realmids_by_order.json";
 import realmsData from "../../geodata/realms.json";
 import { unpackResources } from "../../utils/packedData";
 import { useEntityQuery } from "@dojoengine/react";
+import useBlockchainStore from "../store/useBlockchainStore";
+import { Realm } from "../../types";
+
+export type RealmExtended = Realm & {
+  entity_id: EntityIndex;
+  name: string;
+  owner?: { address: number };
+  resources: number[];
+};
 
 export function useRealm() {
   const {
     setup: {
-      components: { Realm },
+      components: { Realm, Level, AddressName, Owner },
     },
   } = useDojo();
+
+  const nextBlockTimestamp = useBlockchainStore((state) => state.nextBlockTimestamp);
 
   const getNextRealmIdForOrder = (order: number) => {
     const orderName = getOrderName(order);
@@ -41,8 +52,66 @@ export function useRealm() {
     }
   };
 
+  const getRealmLevel = (
+    realmEntityId: number,
+  ): { level: number; timeLeft: number; percentage: number } | undefined => {
+    const level = getComponentValue(Level, getEntityIdFromKeys([BigInt(realmEntityId)])) || {
+      level: 0,
+      valid_until: nextBlockTimestamp,
+    };
+
+    let trueLevel = level.level;
+    // calculate true level
+    if (level.valid_until > nextBlockTimestamp) {
+      trueLevel = level.level;
+    } else {
+      const weeksPassed = Math.floor((nextBlockTimestamp - level.valid_until) / 604800) + 1;
+      trueLevel = Math.max(0, level.level - weeksPassed);
+    }
+
+    let timeLeft: number;
+    if (trueLevel === 0) {
+      timeLeft = 0;
+    } else {
+      if (nextBlockTimestamp >= level.valid_until) {
+        timeLeft = 604800 - ((nextBlockTimestamp - level.valid_until) % 604800);
+      } else {
+        timeLeft = level.valid_until - nextBlockTimestamp;
+      }
+    }
+
+    let percentage = 100;
+    if (trueLevel === 1) {
+      percentage = 125;
+    } else if (trueLevel === 2) {
+      percentage = 150;
+    } else if (trueLevel === 3) {
+      percentage = 200;
+    }
+    return { level: trueLevel, timeLeft, percentage };
+  };
+
+  const getAddressName = (address: string) => {
+    const addressName = getComponentValue(AddressName, getEntityIdFromKeys([BigInt(address)]));
+    return addressName ? hexToAscii(numberToHex(addressName.name)) : undefined;
+  };
+
+  const getRealmAddressName = (realmEntityId: number) => {
+    const owner = getComponentValue(Owner, getEntityIdFromKeys([BigInt(realmEntityId)]));
+    const addressName = owner
+      ? getComponentValue(AddressName, getEntityIdFromKeys([BigInt(owner.address)]))
+      : undefined;
+
+    if (addressName) {
+      return hexToAscii(numberToHex(addressName.name));
+    }
+  };
+
   return {
     getNextRealmIdForOrder,
+    getRealmLevel,
+    getAddressName,
+    getRealmAddressName,
   };
 }
 
@@ -97,7 +166,7 @@ export function useGetRealm(realmEntityId: number | undefined) {
   };
 }
 
-export function useGetRealms() {
+export function useGetRealms(): { realms: RealmExtended[] } {
   const {
     setup: {
       components: { Realm, Owner },
@@ -106,7 +175,7 @@ export function useGetRealms() {
 
   const realmEntityIds = useEntityQuery([Has(Realm)]);
 
-  const realms: any[] = useMemo(
+  const realms: RealmExtended[] = useMemo(
     () =>
       Array.from(realmEntityIds).map((entityId) => {
         const realm = getComponentValue(Realm, entityId) as any;

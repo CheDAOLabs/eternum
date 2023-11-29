@@ -1,0 +1,6 @@
+mod soldier_create_system_tests;
+mod soldier_group_system_tests;
+mod soldier_ungroup_system_tests;
+
+mod combat_attack_system_tests;
+mod combat_steal_system_tests;

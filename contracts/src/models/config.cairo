@@ -124,6 +124,44 @@ struct SpeedConfig {
     sec_per_km: u16,
 }
 
+#[derive(Model, Copy, Drop, Serde)]
+struct CombatConfig {
+    #[key]
+    config_id: u128,
+    stealing_trial_count: u32
+}
+
+#[derive(Model, Copy, Drop, Serde)]
+struct SoldierConfig {
+    #[key]
+    config_id: u128,
+    resource_cost_id: u128,
+    resource_cost_count: u32
+}
+
+#[derive(Model, Copy, Drop, Serde)]
+struct HealthConfig {
+    #[key]
+    entity_type: u128,
+    value: u128,
+}
+
+
+#[derive(Model, Copy, Drop, Serde)]
+struct AttackConfig {
+    #[key]
+    entity_type: u128,
+    value: u128,
+}
+
+
+#[derive(Model, Copy, Drop, Serde)]
+struct DefenceConfig {
+    #[key]
+    entity_type: u128,
+    value: u128,
+}
+
 // weight
 #[derive(Model, Copy, Drop, Serde)]
 struct WeightConfig {
@@ -147,4 +185,12 @@ impl WeightConfigImpl of WeightConfigTrait {
 
         return resource_weight_config.weight_gram * amount;
     }
+}
+
+#[derive(Model, Copy, Drop, Serde)]
+struct LevelingConfig {
+    #[key]
+    config_id: u128,
+    resource_cost_id: u128,
+    resource_cost_count: u32
 }

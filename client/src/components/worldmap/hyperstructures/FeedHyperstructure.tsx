@@ -27,7 +27,6 @@ import { useGetPositionCaravans } from "../../../hooks/helpers/useCaravans";
 import { NumberInput } from "../../../elements/NumberInput";
 import { ReactComponent as ArrowSeparator } from "../../../assets/icons/common/arrow-separator.svg";
 import { WEIGHT_PER_DONKEY_KG } from "@bibliothecadao/eternum";
-import { ReactComponent as CloseIcon } from "../../../assets/icons/common/cross-circle.svg";
 import useUIStore from "../../../hooks/store/useUIStore";
 
 type FeedHyperstructurePopupProps = {
@@ -87,7 +86,6 @@ export const FeedHyperstructurePopup = ({ onClose, order }: FeedHyperstructurePo
       {
         key: "my",
         label: (
-          // TODO: implement incoming caravans here
           <div
             onMouseEnter={() =>
               setTooltip({
@@ -118,10 +116,9 @@ export const FeedHyperstructurePopup = ({ onClose, order }: FeedHyperstructurePo
 
   return (
     <SecondaryPopup name="hyperstructure">
-      <SecondaryPopup.Head>
+      <SecondaryPopup.Head onClose={onClose}>
         <div className="flex items-center space-x-1">
           <div className="mr-0.5 bg-gray">Manage Hyperstructure:</div>
-          <CloseIcon className="w-3 h-3 cursor-pointer fill-white" onClick={onClose} />
         </div>
       </SecondaryPopup.Head>
       <SecondaryPopup.Body width={"460px"}>
@@ -196,7 +193,7 @@ const SelectableRealm = ({ realm, selected = false, initialized = false, onClick
                   withTooltip
                   key={resource.id}
                   resourceId={resource.id}
-                  amount={resource.balance}
+                  amount={divideByPrecision(resource.balance)}
                   color={resource.balance >= costById[resource.id] ? "" : "text-order-giants"}
                 />
               );
@@ -211,6 +208,19 @@ const SelectableRealm = ({ realm, selected = false, initialized = false, onClick
           {initialized ? `Set the amounts` : `Initialize construction`}
         </Button>
       </div>
+    </div>
+  );
+};
+
+const PercentageSelection = ({ setPercentage }: { setPercentage: (percentage: number) => void }) => {
+  const percentages = [0, 25, 50, 75, 100];
+  return (
+    <div className="w-[80%] flex flex-row items-center justify-center">
+      {percentages.map((percentage) => (
+        <Button variant={"outline"} className={"!p-1 my-2 mr-3 w-20"} onClick={() => setPercentage(percentage)}>
+          {`${percentage}%`}
+        </Button>
+      ))}
     </div>
   );
 };
@@ -287,6 +297,7 @@ const BuildHyperstructurePanel = ({
   const realmEntityIds = useRealmStore((state) => state.realmEntityIds);
   const realmEntityId = useRealmStore((state) => state.realmEntityId);
   const setRealmEntityId = useRealmStore((state) => state.setRealmEntityId);
+  const [percentage, setPercentage] = useState<number>(null);
   const [feedResourcesGiveAmounts, setFeedResourcesGiveAmounts] = useState<{ [key: number]: number }>({
     1: 0,
     2: 0,
@@ -387,6 +398,29 @@ const BuildHyperstructurePanel = ({
     }
   }, [donkeysCount, resourceWeight]);
 
+  const totalResources = useMemo(() => {
+    const totalResources: any = {};
+    hyperstructureData?.hyperstructureResources.forEach((resource) => {
+      let resourceAmount = getComponentValue(
+        Resource,
+        getEntityIdFromKeys([BigInt(realmEntityId), BigInt(resource.resourceId)]),
+      );
+      totalResources[resource.resourceId] = resourceAmount?.balance || 0;
+    });
+    return totalResources;
+  }, [hyperstructureData, realmEntityId]);
+
+  useEffect(() => {
+    const feedResourcesGiveAmounts = {};
+    Object.keys(totalResources).forEach((id) => {
+      feedResourcesGiveAmounts[id] = Math.min(
+        Math.floor(divideByPrecision((totalResources[id] * percentage) / 100)),
+        resourcesLeftToComplete[id],
+      );
+      setFeedResourcesGiveAmounts(feedResourcesGiveAmounts);
+    });
+  }, [percentage]);
+
   return (
     <div className="flex flex-col items-center p-2">
       <div className="flex flex-col space-y-2 text-xs w-full mb-3">
@@ -433,7 +467,7 @@ const BuildHyperstructurePanel = ({
                           type="vertical"
                           key={resourceId}
                           resourceId={resourceId}
-                          amount={amount}
+                          amount={divideByPrecision(amount)}
                         />
                       ))
                     : resourcesLeftToComplete &&
@@ -443,7 +477,7 @@ const BuildHyperstructurePanel = ({
                           type="vertical"
                           key={id}
                           resourceId={Number(id)}
-                          amount={multiplyByPrecision(resourcesLeftToComplete[id])}
+                          amount={resourcesLeftToComplete[id]}
                         />
                       ))}
                 </div>
@@ -496,10 +530,6 @@ const BuildHyperstructurePanel = ({
                   <Headline className="mb-2">You Give</Headline>
                   {Object.keys(resourcesLeftToComplete).map((_id) => {
                     const id: any = Number(_id);
-                    let resource = getComponentValue(
-                      Resource,
-                      getEntityIdFromKeys([BigInt(realmEntityId), BigInt(id)]),
-                    );
                     return (
                       <div key={id} className="flex items-center w-full h-8">
                         <NumberInput
@@ -509,7 +539,7 @@ const BuildHyperstructurePanel = ({
                           onChange={(value) => {
                             setFeedResourcesGiveAmounts({
                               ...feedResourcesGiveAmounts,
-                              [id]: Math.min(divideByPrecision(resource?.balance || 0), value),
+                              [id]: Math.min(divideByPrecision(totalResources[id] || 0), value),
                             });
                           }}
                         />
@@ -519,11 +549,11 @@ const BuildHyperstructurePanel = ({
                             onClick={() => {
                               setFeedResourcesGiveAmounts({
                                 ...feedResourcesGiveAmounts,
-                                [id]: Math.min(divideByPrecision(resource?.balance || 0), resourcesLeftToComplete[id]),
+                                [id]: Math.min(divideByPrecision(totalResources[id] || 0), resourcesLeftToComplete[id]),
                               });
                             }}
                             resourceId={id}
-                            amount={resource?.balance || 0}
+                            amount={divideByPrecision(totalResources[id] || 0)}
                           />
                         </div>
                       </div>
@@ -540,7 +570,7 @@ const BuildHyperstructurePanel = ({
                       key={id}
                       className="!w-min h-8 cursor-pointer"
                       resourceId={Number(id)}
-                      amount={multiplyByPrecision(resourcesLeftToComplete[id])}
+                      amount={resourcesLeftToComplete[id]}
                       onClick={() => {
                         setFeedResourcesGiveAmounts({
                           ...feedResourcesGiveAmounts,
@@ -553,6 +583,7 @@ const BuildHyperstructurePanel = ({
               </div>
             </>
           )}
+          <PercentageSelection setPercentage={setPercentage}></PercentageSelection>
           <SelectCaravanPanel
             className="!p-0"
             donkeysCount={donkeysCount}

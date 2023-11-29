@@ -15,16 +15,12 @@ import { useDojo } from "../../../../DojoContext";
 import { formatSecondsLeftInDaysHours } from "./laborUtils";
 import { soundSelector, useUiSounds } from "../../../../hooks/useUISound";
 import { getComponentValue } from "@latticexyz/recs";
-import { getEntityIdFromKeys, getPosition, getZone } from "../../../../utils/utils";
+import { divideByPrecision, getEntityIdFromKeys, getPosition, getZone } from "../../../../utils/utils";
 import useBlockchainStore from "../../../../hooks/store/useBlockchainStore";
 import { useGetRealm } from "../../../../hooks/helpers/useRealm";
 import { useLabor } from "../../../../hooks/helpers/useLabor";
-
-let LABOR_CONFIG = {
-  base_food_per_cycle: 14000,
-  base_labor_units: 7200,
-  base_resources_per_cycle: 21,
-};
+import { LaborAuction } from "./LaborAuction";
+import { LABOR_CONFIG } from "@bibliothecadao/eternum";
 
 type LaborBuildPopupProps = {
   resourceId: number;
@@ -50,6 +46,14 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
     setMultiplier(1); // Reset the multiplier to 1 when the resourceId changes
   }, [resourceId]);
 
+  const onMultiplierChange = (value: number) => {
+    if (resourceId === 254) {
+      setMultiplier(Math.min(value, realm?.rivers || 0));
+    } else {
+      setMultiplier(Math.min(value, realm?.harbors || 0));
+    }
+  };
+
   let { realmEntityId, realmId } = useRealmStore();
   const { realm } = useGetRealm(realmEntityId);
 
@@ -59,7 +63,7 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
   const laborUnits = useMemo(() => (isFood ? 12 : laborAmount), [laborAmount]);
   const resourceInfo = useMemo(() => findResourceById(resourceId), [resourceId]);
 
-  const { getLaborCost, getLaborAuctionAverageCoefficient, getNextLaborAuctionCoefficient } = useLabor();
+  const { getLaborCost, getLaborAuctionAverageCoefficient } = useLabor();
 
   const labor = getComponentValue(Labor, getEntityIdFromKeys([BigInt(realmEntityId), BigInt(resourceId)]));
   const hasLaborLeft = useMemo(() => {
@@ -76,11 +80,6 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
     let coefficient = zone ? getLaborAuctionAverageCoefficient(zone, laborUnits * multiplier) : undefined;
     return coefficient || 1;
   }, [zone, laborUnits, multiplier]);
-
-  const nextLaborAuctionCoefficient = useMemo(
-    () => (zone ? getNextLaborAuctionCoefficient(zone, laborUnits * multiplier) : undefined),
-    [zone, laborUnits, multiplier],
-  );
 
   const costResources = useMemo(() => getLaborCost(resourceId), [resourceId]);
 
@@ -250,7 +249,7 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
 
   return (
     <SecondaryPopup name="labor">
-      <SecondaryPopup.Head>
+      <SecondaryPopup.Head onClose={onClose}>
         <div className="flex items-center space-x-1">
           <div className="mr-0.5">Build Labor:</div>
         </div>
@@ -268,21 +267,20 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
               {resourceId === 254 && (
                 <div className="flex items-center">
                   <Farms className="mr-1" />
-                  <span className="mr-1 font-bold">{`${multiplier}/${Math.min(realm?.rivers || 0, 4)}`}</span> Farms
+                  <span className="mr-1 font-bold">{`${multiplier}/${realm?.rivers || 0}`}</span> Farms
                 </div>
               )}
               {resourceId === 255 && (
                 <div className="flex items-center">
                   {/* // DISCUSS: can only be 0, because that is when you can build */}
                   <FishingVillages className="mr-1" />
-                  <span className="mr-1 font-bold">{`${multiplier}/${Math.min(realm?.harbors || 0, 4)}`}</span> Fishing
-                  Villages
+                  <span className="mr-1 font-bold">{`${multiplier}/${realm?.harbors || 0}`}</span> Fishing Villages
                 </div>
               )}
             </div>
             <div className="flex items-center">
-              {`+${isFood ? (LABOR_CONFIG.base_food_per_cycle * multiplier) / 2 : ""}${
-                isFood ? "" : LABOR_CONFIG.base_resources_per_cycle / 2
+              {`+${isFood ? divideByPrecision(LABOR_CONFIG.base_food_per_cycle * multiplier) / 2 : ""}${
+                isFood ? "" : divideByPrecision(LABOR_CONFIG.base_resources_per_cycle) / 2
               }`}
               <ResourceIcon
                 containerClassName="mx-0.5"
@@ -297,7 +295,7 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
             <BuildingsCount
               count={multiplier}
               // note: need to limit to 4 because of temp gas limit
-              maxCount={resourceId === 254 ? Math.min(realm?.rivers || 0, 4) : Math.min(realm?.harbors || 0, 4)}
+              maxCount={resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0}
               className="mt-2"
             />
           )}
@@ -314,30 +312,28 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
             {!isFood && (
               <img src={`/images/resources/${resourceId}.jpg`} className="object-cover w-full h-full rounded-[10px]" />
             )}
-            <div className="fle flex-col p-2 absolute left-2 bottom-2 rounded-[10px] bg-black/60">
+            <div className="absolute top-2 left-2 bg-black/60 rounded-[10px] p-3 hover:bg-black">
+              <LaborAuction />
+            </div>
+            <div className="flex flex-col p-2 absolute left-2 bottom-2 rounded-[10px] bg-black/60">
               <div className="mb-1 ml-1 italic text-light-pink text-xxs">Price:</div>
               <div className="grid grid-cols-4 gap-2">
                 {costResources.map(({ resourceId, amount }) => (
                   <ResourceCost
+                    withTooltip
                     key={resourceId}
                     type="vertical"
                     resourceId={resourceId}
                     amount={Number(
-                      getTotalAmount(amount, isFood, multiplier, laborAmount, laborAuctionAverageCoefficient).toFixed(
-                        2,
-                      ),
+                      divideByPrecision(
+                        getTotalAmount(amount, isFood, multiplier, laborAmount, laborAuctionAverageCoefficient),
+                      ).toFixed(2),
                     )}
                   />
                 ))}
               </div>
             </div>
           </div>
-        </div>
-        <div className={"flex items-center text-white text-xxs space-x-4 mx-2"}>
-          <div className="">Labor Average Price: </div>
-          {<div className="">x {laborAuctionAverageCoefficient.toFixed(3)}</div>}
-          <div className="">Labor Next Price: </div>
-          {<div className="">x {nextLaborAuctionCoefficient?.toFixed(3)}</div>}
         </div>
         <div className="flex justify-between m-2 text-xxs">
           {!isFood && (
@@ -346,7 +342,7 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
               {/* note: max 76 for now because of gas, can remove after new contract deployment */}
               <NumberInput className="ml-2 mr-2" value={laborAmount} step={5} onChange={setLaborAmount} max={76} />
               <div className="italic text-gold">
-                {formatSecondsLeftInDaysHours(laborAmount * (LABOR_CONFIG?.base_labor_units || 0))}
+                {formatSecondsLeftInDaysHours(laborAmount * divideByPrecision(LABOR_CONFIG?.base_labor_units || 0))}
               </div>
             </div>
           )}
@@ -356,13 +352,11 @@ export const LaborBuildPopup = ({ resourceId, setBuildLoadingStates, onClose }: 
               <NumberInput
                 className="ml-2 mr-2"
                 value={multiplier}
-                onChange={setMultiplier}
-                // max={resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0}
-                // note: need to limit for now because of gas issues
-                max={Math.min(resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0, 4)}
+                onChange={onMultiplierChange}
+                max={resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0}
               />
               <div className="italic text-gold">
-                Max {Math.min(resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0, 4)}
+                Max {resourceId === 254 ? realm?.rivers || 0 : realm?.harbors || 0}
               </div>
             </div>
           )}

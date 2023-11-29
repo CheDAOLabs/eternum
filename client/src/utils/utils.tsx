@@ -121,6 +121,19 @@ export const numberToHex = (num: number) => {
   return "0x" + num.toString(16);
 };
 
+export const hexToAscii = (str1: string) => {
+  var hex = str1.toString();
+  var str = "";
+  for (var n = 0; n < hex.length; n += 2) {
+    var asciiCode = parseInt(hex.substr(n, 2), 16);
+    if (!isNaN(asciiCode)) {
+      // Check if the parsed value is a number
+      str += String.fromCharCode(asciiCode);
+    }
+  }
+  return str;
+};
+
 export const padAddress = (address: string) => {
   return "0x" + address.substring(2).padStart(64, "0");
 };
@@ -292,6 +305,14 @@ export const getContractPositionFromRealPosition = (position: Position): Positio
   return {
     x: Math.floor(x * 10000 + 1800000),
     y: Math.floor(y * 10000 + 1800000),
+  };
+};
+
+export const getRealmPositionFromContractPosition = (position: Position): Position => {
+  const { x, y } = position;
+  return {
+    x: (x - 1800000) / 10000,
+    y: (y - 1800000) / 10000,
   };
 };
 

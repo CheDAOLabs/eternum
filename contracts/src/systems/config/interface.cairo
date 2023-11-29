@@ -28,6 +28,45 @@ trait ICapacityConfig<TContractState> {
     );
 }
 
+
+#[starknet::interface]
+trait ICombatConfig<TContractState> {
+    fn set_combat_config(
+        self: @TContractState, 
+        world: IWorldDispatcher, 
+        config_id: u128, 
+        stealing_trial_count: u32
+    );
+
+    fn set_soldier_config(
+        self: @TContractState, 
+        world: IWorldDispatcher, 
+        resource_costs: Span<(u8, u128)>
+    );
+
+    fn set_health_config(
+        self: @TContractState, 
+        world: IWorldDispatcher, 
+        entity_type: u128, 
+        value: u128
+    );
+
+    fn set_attack_config(
+        self: @TContractState, 
+        world: IWorldDispatcher, 
+        entity_type: u128, 
+        value: u128
+    );
+
+    fn set_defence_config(
+        self: @TContractState, 
+        world: IWorldDispatcher, 
+        entity_type: u128, 
+        value: u128
+    );
+}
+
+
 #[starknet::interface]
 trait ILaborConfig<TContractState> {
     fn set_labor_cost_resources(
@@ -79,4 +118,12 @@ trait IHyperstructureConfig<TContractState> {
         construction_resources: Span<(u8, u128)>, coord: Coord
     ) -> ID;
 
+}
+
+#[starknet::interface]
+trait ILevelingConfig<TContractState> {
+    fn set_leveling_config(
+        self: @TContractState, world: IWorldDispatcher,
+        resource_costs: Span<(u8, u128)>
+    );
 }

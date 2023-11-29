@@ -3,7 +3,6 @@ import { ReactComponent as Crown } from "../assets/icons/common/crown-circle-out
 import { ReactComponent as Settings } from "../assets/icons/common/settings.svg";
 import { ReactComponent as Muted } from "../assets/icons/common/muted.svg";
 import { ReactComponent as Unmuted } from "../assets/icons/common/unmuted.svg";
-import { ReactComponent as CloseIcon } from "../assets/icons/common/cross-circle.svg";
 import { SecondaryPopup } from "../elements/SecondaryPopup";
 import { Headline } from "../elements/Headline";
 import SettleRealmComponent from "./cityview/realm/SettleRealmComponent";
@@ -13,12 +12,15 @@ import { RangeInput } from "../elements/RangeInput";
 import useUIStore from "../hooks/store/useUIStore";
 import useScreenOrientation from "../hooks/useScreenOrientation";
 import { useDojo } from "../DojoContext";
+import { useAddressStore } from "../hooks/store/useAddressStore";
 type SettingsComponentProps = {};
 
 export const SettingsComponent = ({}: SettingsComponentProps) => {
   const {
     account: { accountDisplay },
   } = useDojo();
+
+  const addressName = useAddressStore((state) => state.addressName);
   const [showSettings, setShowSettings] = useState(false);
   const musicLevel = useUIStore((state) => state.musicLevel);
   const effectsLevel = useUIStore((state) => state.effectsLevel);
@@ -38,7 +40,8 @@ export const SettingsComponent = ({}: SettingsComponentProps) => {
   return (
     <div className="flex items-center text-white">
       <Crown className="mr-[6px] fill-current" />
-      <div className="text-xs font-bold">{accountDisplay}</div>
+      <div className="text-xs font-bold mr-2">{accountDisplay}</div>
+      {addressName && <div className="text-xs font-bold">{addressName}</div>}
       <Settings
         onClick={() => setShowSettings(!showSettings)}
         className="ml-[6px] cursor-pointer fill-gold translate-y-1"
@@ -50,10 +53,9 @@ export const SettingsComponent = ({}: SettingsComponentProps) => {
       )}
       {showSettings && (
         <SecondaryPopup className="top-1/3" name="settings">
-          <SecondaryPopup.Head>
+          <SecondaryPopup.Head onClose={() => setShowSettings(!showSettings)}>
             <div className="flex items-center">
               <div className="mr-0.5">Settings</div>
-              <CloseIcon className="w-3 h-3 cursor-pointer fill-white" onClick={() => setShowSettings(!showSettings)} />
             </div>
           </SecondaryPopup.Head>
           <SecondaryPopup.Body width="400px">
@@ -76,6 +78,12 @@ export const SettingsComponent = ({}: SettingsComponentProps) => {
               <Button onClick={() => setShowSettings(false)} variant="outline" className="text-xxs !py-1 !px-2 mr-auto">
                 Done
               </Button>
+              <div className="text-xs text-white/40">
+                This client is open source on{" "}
+                <a className="underline" href="https://github.com/BibliothecaDAO/eternum">
+                  Github
+                </a>
+              </div>
             </div>
           </SecondaryPopup.Body>
         </SecondaryPopup>

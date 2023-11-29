@@ -14,7 +14,7 @@ const HIGHEST_Y: u32 = 2412800;
 // lowest y = -618996 + 1800000 = 1181004
 const LOWEST_Y: u32 = 1181004;
 
-#[derive(Copy, Drop, PartialEq, Serde)]
+#[derive(Copy, Drop, PartialEq, Serde, Print, Introspect)]
 struct Coord {
     x: u32,
     y: u32
@@ -51,10 +51,19 @@ impl CoordImpl of CoordTrait {
 }
 
 
-impl CoordPrint of PrintTrait<Coord> {
-    fn print(self: Coord) {
-        self.x.print();
-        self.y.print();
+
+impl CoordZeroable of Zeroable<Coord> {
+    fn zero() -> Coord {
+        Coord { x: 0, y: 0 }
+    }
+    #[inline(always)]
+    fn is_zero(self: Coord) -> bool {
+        self.x == 0 && self.y == 0
+    }
+    
+    #[inline(always)]
+    fn is_non_zero(self: Coord) -> bool {
+        !self.is_zero()
     }
 }
 
@@ -67,16 +76,9 @@ impl PositionIntoCoord of Into<Position, Coord> {
     }
 }
 
-#[derive(Model, PartialEq, Copy, Drop, Serde)]
-struct Position {
-    #[key]
-    entity_id: u128,
-    x: u32,
-    y: u32
-}
 
 #[derive(Model, PartialEq, Copy, Drop, Serde)]
-struct HomePosition {
+struct Position {
     #[key]
     entity_id: u128,
     x: u32,
@@ -98,42 +100,46 @@ impl PositionImpl of PositionTrait {
     }
 }
 
-#[test]
-#[available_gas(30000000)]
-fn test_calculate_distance() {
-    let a = Position { entity_id: 0, x: 100000, y: 200000 };
-    let b = Position { entity_id: 0, x: 200000, y: 1000000 };
-    let distance = a.calculate_distance(b);
-    assert(distance == 80, 'distance should be 1');
-}
+#[cfg(test)]
+mod tests {
+    use super::{Position, PositionTrait};
 
-#[test]
-#[available_gas(30000000)]
-fn test_calculate_travel_time() {
-    let a = Position { entity_id: 0, x: 100000, y: 200000 };
-    let b = Position { entity_id: 0, x: 200000, y: 1000000 };
-    // 720 sec per km = 5 kmh
-    let time = a.calculate_travel_time(b, 720);
-    assert(time == 57600, 'time should be 57600');
-}
+    #[test]
+    #[available_gas(30000000)]
+    fn test_calculate_distance() {
+        let a = Position { entity_id: 0, x: 100000, y: 200000 };
+        let b = Position { entity_id: 0, x: 200000, y: 1000000 };
+        let distance = a.calculate_distance(b);
+        assert(distance == 80, 'distance should be 1');
+    }
 
-#[test]
-fn test_position_equal() {
-    let a = Position { entity_id: 0, x: 1, y: 2 };
-    let b = Position { entity_id: 0, x: 1, y: 2 };
-    assert(a == b, 'a should equal b');
-}
-#[test]
-fn test_position_non_equal() {
-    let a = Position { entity_id: 0, x: 1, y: 2 };
-    let b = Position { entity_id: 0, x: 2, y: 1 };
-    assert(a != b, 'a should not equal b');
-}
+    #[test]
+    #[available_gas(30000000)]
+    fn test_calculate_travel_time() {
+        let a = Position { entity_id: 0, x: 100000, y: 200000 };
+        let b = Position { entity_id: 0, x: 200000, y: 1000000 };
+        // 720 sec per km = 5 kmh
+        let time = a.calculate_travel_time(b, 720);
+        assert(time == 57600, 'time should be 57600');
+    }
 
-#[test]
-fn test_get_zone() { 
-    let a = Position { entity_id: 0, x: 1333333, y: 200000 };
-    let zone = a.get_zone();
-    assert(zone == 4, 'zone should be 4');
-}
+    #[test]
+    fn test_position_equal() {
+        let a = Position { entity_id: 0, x: 1, y: 2 };
+        let b = Position { entity_id: 0, x: 1, y: 2 };
+        assert(a == b, 'a should equal b');
+    }
+    #[test]
+    fn test_position_non_equal() {
+        let a = Position { entity_id: 0, x: 1, y: 2 };
+        let b = Position { entity_id: 0, x: 2, y: 1 };
+        assert(a != b, 'a should not equal b');
+    }
 
+    #[test]
+    fn test_get_zone() { 
+        let a = Position { entity_id: 0, x: 1333333, y: 200000 };
+        let zone = a.get_zone();
+        assert(zone == 4, 'zone should be 4');
+    }
+}

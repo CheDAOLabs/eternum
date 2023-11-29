@@ -1,7 +1,7 @@
 import React from "react";
 import { soundSelector, useUiSounds } from "../hooks/useUISound";
 
-interface ButtonProps {
+type ButtonProps = {
   onClick: () => void;
   children: React.ReactNode;
   className?: string;
@@ -10,10 +10,11 @@ interface ButtonProps {
   isLoading?: boolean;
   withoutSound?: boolean;
   size?: "xs" | "md";
-}
+} & React.ComponentPropsWithRef<"button">;
 
 const STYLES = {
-  baseStyle: "inline-flex transition-all duration-300 items-center justify-center p-2 text-xs font-medium rounded-md",
+  baseStyle:
+    "inline-flex whitespace-nowrap cursor-pointer white transition-all duration-300 items-center justify-center p-2 text-xs font-medium rounded-md",
   primary: "rounded-full py-1 bg-gold hover:bg-gold/50 focus:outline-none",
   default: "text-white/90 border border-transparent shadow-sm",
   enabledStyle: "bg-black/10 hover:bg-black/30 focus:outline-none",
@@ -39,6 +40,7 @@ const Button: React.FC<ButtonProps> = ({
   isLoading = false,
   withoutSound = false,
   size = "md",
+  ...props
 }) => {
   const { play: playClick } = useUiSounds(soundSelector.click);
 
@@ -55,6 +57,7 @@ const Button: React.FC<ButtonProps> = ({
         isLoading ? STYLES.loadingStyle : ""
       } ${className} ${SIZES[size]}`}
       disabled={disabled || isLoading}
+      {...props}
     >
       {isLoading ? (
         <div className="absolute inset-0 flex items-center justify-center">
